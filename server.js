@@ -11,9 +11,9 @@ const gameRoutes = require("./routes/gameRoutes");
 const walletRoutes = require("./routes/walletRoutes");
 // Service imports
 const { getPrices } = require("./services/priceService");
-const { placeBet, cashOut } = require("./services/transactionService"); // ✅ both imported here
-const { startGame } = require("./sockets/gameSocket"); // Import startGame
-const Player = require("./models/Player"); // ✅ Import Player model
+const { placeBet, cashOut } = require("./services/transactionService"); 
+const { startGame } = require("./sockets/gameSocket"); 
+const Player = require("./models/Player"); 
 
 // Connect to MongoDB
 connectDB();
@@ -88,11 +88,11 @@ io.on("connection", (socket) => {
     console.log("❌ Client disconnected:", socket.id);
   });
 
-  // You can add your game logic socket events here
+  
 });
 
 // ⏱️ Start the game loop
-startGame(io); // Start the game loop after setting up the connection
+startGame(io); 
 
 // Start server
 const PORT = process.env.PORT || 5000;
