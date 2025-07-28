@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Crypto Crash – Test Client</title>
+</head>
+<body>
+  <h2>Crypto Crash – Test Client</h2>
+  <p id="multiplier">Waiting...</p>
+  <p id="crash"></p>
+
+  <button onclick="placeBet()">Place $10 Bet (BTC)</button>
+  <button onclick="cashOut()">Cash Out</button>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script>
+    const socket = io("http://localhost:5000");
+
+    let playerId = null;
+    let lastBetAmount = 10;
+    let lastCurrency = "BTC";
+
+    // 🟢 WebSocket Events
+    socket.on("round_start", (data) => {
+      document.getElementById("crash").textContent = "💥 Crash point: " + data.crashPoint + "x";
+      console.log("🟢 Round started at:", data.crashPoint);
+    });
+
+    socket.on("multiplier_update", (data) => {
+      document.getElementById("multiplier").textContent = "🚀 Multiplier: " + data.multiplier + "x";
+    });
+
+    socket.on("round_crash", (data) => {
+      document.getElementById("multiplier").textContent = "💀 Crashed at: " + data.crashPoint + "x";
+    });
+
+    socket.on("player_cashout", (data) => {
+      console.log("💰 Cashout received:", data);
+    });
+
+    // 🔘 Place Bet Function
+    function placeBet() {
+      fetch("http://localhost:5000/bet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: "anurag",
+          usdAmount: lastBetAmount,
+          currency: lastCurrency
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.playerId) {
+          playerId = data.playerId;
+          console.log("✅ Bet placed. Player ID:", playerId);
+        } else {
+          alert("❌ Bet failed: " + data.error);
+        }
+      })
+      .catch(err => {
+        console.error("❌ Error placing bet:", err);
+      });
+    }
+
+    // 🔘 Cash Out Function
+    function cashOut() {
+      if (!playerId) {
+        alert("⚠️ No playerId available. Place a bet first!");
+        return;
+      }
+
+      // For now, hardcoding cryptoAmount & multiplier for testing
+      fetch("http://localhost:5000/cashout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playerId: playerId,
+          cryptoAmount: 0.0001,         // Example value
+          currency: lastCurrency,
+          multiplier: 1.5               // Example multiplier
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("✅ Cashout result:", data);
+      })
+      .catch(err => {
+        console.error("❌ Error cashing out:", err);
+      });
+    }
+  </script>
+</body>
+</html>
