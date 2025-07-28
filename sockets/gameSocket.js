@@ -9,19 +9,19 @@ let currentMultiplier = 1;
 let gameInterval;
 let crashPoint = null;
 let roundNumber = 1;
-let seed = "static_seed_123"; // Change if needed
+let seed = "static_seed_123";
 let activeBets = {}; // playerId → { cryptoAmount, currency, usdAmount }
-let activeRoundId = null; // ✅ Fix: track current roundId
+let activeRoundId = null;
 
 async function startGame(io) {
   setInterval(async () => {
     currentMultiplier = 1;
     crashPoint = generateCrashPoint(seed, roundNumber);
-    activeBets = {}; // reset active bets
+    activeBets = {}; // Reset active bets
 
-    // ✅ Track current round ID globally
+    // ✅ Generate new round
     activeRoundId = `round_${Date.now()}`;
-    const newRound = await GameRound.create({
+    await GameRound.create({
       roundId: activeRoundId,
       crashPoint,
       bets: []
@@ -34,26 +34,35 @@ async function startGame(io) {
     });
 
     let intervalTick = 0;
+
     gameInterval = setInterval(async () => {
       currentMultiplier = parseFloat((1 + intervalTick * 0.01).toFixed(2));
 
       if (currentMultiplier >= crashPoint) {
         clearInterval(gameInterval);
+
         io.emit("round_crash", {
           crashPoint,
           message: `💥 Game crashed at ${crashPoint}x`
         });
 
-        for (const playerId in activeBets) {
-          const bet = activeBets[playerId];
-          newRound.bets.push({
-            playerId,
-            ...bet,
-            cashoutMultiplier: null,
-            cashedOut: false
-          });
+        try {
+          const round = await GameRound.findOne({ roundId: activeRoundId });
+          if (round) {
+            for (const playerId in activeBets) {
+              const bet = activeBets[playerId];
+              round.bets.push({
+                playerId,
+                ...bet,
+                cashoutMultiplier: null,
+                cashedOut: false
+              });
+            }
+            await round.save();
+          }
+        } catch (err) {
+          console.error("❌ Error saving round crash data:", err.message);
         }
-        await newRound.save();
 
         roundNumber++;
       } else {
@@ -65,16 +74,21 @@ async function startGame(io) {
   }, 15000);
 
   io.on("connection", (socket) => {
-    console.log("🟢 WebSocket: ", socket.id);
+    console.log("🟢 WebSocket connected:", socket.id);
 
     socket.on("place_bet", async ({ username, usdAmount, currency }) => {
       try {
         const prices = await getPrices();
         const price = prices[currency];
         const player = await Player.findOne({ username });
-        if (!player) return;
+
+        if (!player) {
+          socket.emit("error", "Player not found");
+          return;
+        }
 
         const cryptoAmount = usdAmount / price;
+
         if (player.wallet[currency] < cryptoAmount) {
           socket.emit("error", "Insufficient balance");
           return;
@@ -101,6 +115,7 @@ async function startGame(io) {
 
         socket.emit("bet_accepted", { usdAmount, currency, cryptoAmount });
       } catch (err) {
+        console.error("❌ Bet error:", err.message);
         socket.emit("error", err.message);
       }
     });
@@ -108,6 +123,7 @@ async function startGame(io) {
     socket.on("cashout", async ({ playerId }) => {
       try {
         const bet = activeBets[playerId];
+
         if (!bet) {
           socket.emit("error", "No active bet found");
           return;
@@ -131,8 +147,8 @@ async function startGame(io) {
           priceAtTime: price
         });
 
-        // ✅ Use global roundId
         const round = await GameRound.findOne({ roundId: activeRoundId });
+
         if (round) {
           round.bets.push({
             playerId,
@@ -153,6 +169,7 @@ async function startGame(io) {
         });
 
       } catch (err) {
+        console.error("❌ Cashout error:", err.message);
         socket.emit("error", err.message);
       }
     });
