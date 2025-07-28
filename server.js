@@ -10,11 +10,20 @@ const connectDB = require("./config/db");
 const gameRoutes = require("./routes/gameRoutes");
 const walletRoutes = require("./routes/walletRoutes");
 
-// Service imports
 const { getPrices } = require("./services/priceService");
 const { placeBet, cashOut } = require("./services/transactionService");
 const { startGame } = require("./sockets/gameSocket");
 const Player = require("./models/Player");
+
+// ✅ Preload crypto prices before game starts
+(async () => {
+  try {
+    await getPrices();
+    console.log("✅ Crypto prices preloaded.");
+  } catch (err) {
+    console.error("⚠️ Failed to preload crypto prices:", err.message);
+  }
+})();
 
 // Connect to MongoDB
 connectDB();
@@ -84,18 +93,10 @@ app.post("/cashout", async (req, res) => {
 app.get("/seed-players", async (req, res) => {
   try {
     await Player.deleteMany();
-
     await Player.insertMany([
-      {
-        username: "anurag",
-        wallet: { BTC: 0.01, ETH: 0.5 }
-      },
-      {
-        username: "saurav",
-        wallet: { BTC: 0.005, ETH: 0.2 }
-      }
+      { username: "anurag", wallet: { BTC: 0.01, ETH: 0.5 } },
+      { username: "saurav", wallet: { BTC: 0.005, ETH: 0.2 } }
     ]);
-
     res.send("✅ Seeded players successfully!");
   } catch (err) {
     res.status(500).send("❌ Seeding failed: " + err.message);
