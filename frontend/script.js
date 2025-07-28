@@ -1,4 +1,6 @@
-const socket = io("http://localhost:5000");
+// const socket = io("http://localhost:5000");
+const socket = io("https://crypto-crash-game-yuar.onrender.com");
+
 
 let playerId = null;
 
