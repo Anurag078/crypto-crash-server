@@ -1,6 +1,8 @@
-// const socket = io("http://localhost:5000");
+// Connect to backend WebSocket (Render URL)
 const socket = io("https://crypto-crash-game-yuar.onrender.com");
 
+// Backend API base URL
+const BACKEND_URL = "https://crypto-crash-game-yuar.onrender.com";
 
 let playerId = null;
 
@@ -49,11 +51,15 @@ function placeBet() {
     return;
   }
 
-  fetch(`/api/player-id?username=${username}`)
+  fetch(`${BACKEND_URL}/api/player-id?username=${username}`)
     .then((res) => res.json())
     .then((data) => {
       playerId = data.playerId;
       socket.emit("place_bet", { username, usdAmount, currency });
+    })
+    .catch((err) => {
+      console.error("Fetch error (player-id):", err);
+      log("❌ Failed to get player ID.");
     });
 }
 
@@ -70,10 +76,15 @@ function cashOut() {
 function fetchWallet() {
   const username = document.getElementById("username").value.trim();
   if (!username) return;
-  fetch(`/wallet/${username}`)
+
+  fetch(`${BACKEND_URL}/wallet/${username}`)
     .then((res) => res.json())
     .then((data) => {
       document.getElementById("btc-balance").innerText = data.wallet.BTC.toFixed(6);
       document.getElementById("eth-balance").innerText = data.wallet.ETH.toFixed(6);
+    })
+    .catch((err) => {
+      console.error("Fetch error (wallet):", err);
+      log("❌ Failed to fetch wallet.");
     });
 }
